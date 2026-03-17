@@ -1,0 +1,127 @@
+{
+  "name": "n8tern Telegram Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "n8tern-telegram",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "feea3d08-1111-4235-98db-0e1ce9e160a0",
+      "name": "Webhook (Manual Send)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "webhookId": "n8tern-telegram-manual-trigger"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.body.chat_id }}",
+        "text": "=🚀 *n8tern Internship Alert!*\n\n*Role:* {{ $json.body.title }}\n*Company:* {{ $json.body.company }}\n*Deadline:* {{ $json.body.deadline }}\n\n[Apply Here]({{ $json.body.url }})",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "e2a1b32d-2222-4a12-8888-2c2b3c4d5e6f",
+      "name": "Telegram (Webhook)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [680, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-api",
+          "name": "n8tern Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-3333-4f5g-6h7i-8j9k0l1m2n3o",
+      "name": "Daily Cron (Reminders)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, l.title, l.company, l.url, l.deadline, s.telegram_chat_id \nFROM applications a\nJOIN listings l ON a.listing_id = l.id\nJOIN students s ON a.student_id = s.id\nWHERE a.status = 'saved' \nAND s.telegram_chat_id IS NOT NULL \nAND l.deadline = CURRENT_DATE + INTERVAL '2 days';"
+      },
+      "id": "z9y8x7w6-4444-5v4u-3t2s-1r0q9p8o7n6m",
+      "name": "Fetch Expiring Applications (Postgres)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 500],
+      "notesInFlow": true,
+      "notes": "Queries Postgres for offers expiring in exactly 2 days where the student has a Telegram ID."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "=⚠️ *n8tern Deadline Reminder!*\n\nYour saved application for *{{ $json.title }}* at *{{ $json.company }}* closes in exactly *2 Days*!\n\n[Apply Now]({{ $json.url }})",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "m1n2o3p4-5555-6q7r-8s9t-0u1v2w3x4y5z",
+      "name": "Telegram (Reminder)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 500],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-api",
+          "name": "n8tern Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (Manual Send)": {
+      "main": [
+        [
+          {
+            "node": "Telegram (Webhook)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Cron (Reminders)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Expiring Applications (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Expiring Applications (Postgres)": {
+      "main": [
+        [
+          {
+            "node": "Telegram (Reminder)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f0dd1ba6-1188-4c1d-8551-df427eebc5d6"
+}
